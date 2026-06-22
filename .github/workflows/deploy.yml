@@ -1,0 +1,35 @@
+name: GitHub Pagesに公開
+
+# mainブランチにpushされたら自動でビルドして公開する
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # GitHubの画面から手動実行もできる
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: ソースを取得
+        uses: actions/checkout@v4
+
+      - name: Node.jsをセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: パッケージをインストール
+        run: npm ci
+
+      - name: ビルド
+        run: npm run build
+
+      - name: gh-pagesに公開
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
