@@ -110,7 +110,7 @@ import { useState } from "react";
 //   ・GASを再デプロイしてURLが変わったら、この1行だけ差し替える。
 // ============================================================
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycby_A1j6wFAwapuqXLAiPsxmyslFs500ehwaI6y1P5BgBMtw38_a-snIfNC1jd5LbCbl/exec";
+  "https://script.google.com/macros/s/AKfycbwfSHmBl8VYy635RPq0hnc_q_wJw1Cgrg0NzXDcucBmK0jTVOvDKbMxeYqvr-UtCyJ9fQ/exec";
 
 // ---- 配色トークン(標本ラベル風)----
 const C = {
