@@ -38,6 +38,7 @@
 // ============================================================
 
 import { useState, useEffect } from "react";
+import { keyPromptBlock } from "./data/searchKey";
 
 // ============================================================
 // AI接続設定（GAS経由でGeminiを呼ぶ）
@@ -740,6 +741,9 @@ export default function App() {
 
     const rotText = rotFilter === "不明" ? "未確認(腐朽型での絞り込みなし)" : `${rotFilter}腐朽(材がその色)`;
 
+    // 図鑑の簡易検索表のうち、観察状況(宿主・部位)に該当する群を注入する
+    const searchKeyBlock = keyPromptBlock({ host, part });
+
     const morphPairs = [
       ["子実体の型", shape], ["柄の有無", hasStem], ["裏面(胞子を作る面)", underside],
       ["傘表面の色", capColor], ["質感", texture], ["寿命", lifespan], ["傷つけたときの変色・特記", bruising],
@@ -764,6 +768,8 @@ ${morphText}
 - 確認済みの決め手(人が確認した事実):
 ${answeredText}
 
+${searchKeyBlock}
+
 # 候補リスト(腐朽型フィルタ適用済み・全${candidateList.length}種)
 各種のフィールド: rotType=腐朽型 / micro=true は顕微鏡確認が必須 / lifespan=寿命(一年生/多年生) / texture=質感 / underside=裏面形態 / tissueColor=組織(断面)の色
 ${JSON.stringify(candidateList)}
@@ -775,7 +781,7 @@ ${JSON.stringify(candidateList)}
 4. micro が true の種、または kettede に「顕微鏡」「メルツァー」「KOH」「担子胞子」など
    現地で見えない確認項目が含まれる種を候補に挙げる場合は、
    riyu に「※現地観察のみでは困難・採取して顕微鏡(または試薬)確認を推奨」と明記する。
-5. 【判定ロジックの優先順位】図鑑の簡易検索表に従い、次の順で上位から絞り込む。
+5. 【判定ロジックの優先順位】上に提示した「図鑑の簡易検索表(該当群)」の分岐を最優先の骨組みとし、次の順で上位から絞り込む。
    上位の条件が矛盾する種は、下位(色・形・サイズ)が似ていても候補から外す(または確信度を極小化する)。
    ただし各項目が「不明・入力なし」のときは、その段は判断に使わない(減点しない)。
    (1) 寄主樹種(host):針葉樹/広葉樹。宿主と矛盾する種を外す。
