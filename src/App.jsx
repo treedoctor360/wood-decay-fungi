@@ -378,7 +378,7 @@ const speciesMaster = [
     shutten: [SOURCES.handbook2017] },
   { id: 33, wamei: "ウズラタケ", gakumei: "Perenniporia ochroleuca", kamei: "サルノコシカケ科", kenshou: "済",
     rotType: "白色", rot: "幹や枝の心材腐朽・白色腐朽", host: "広葉樹、特にウメ、サクラ等バラ科", part: "幹・枝", micro: true,
-    lifespan: "多年生", texture: "コルク質", underside: "管孔状", tissueColor: "白色〜クリーム色",
+    lifespan: "一年生(従来多年生とされるが実際はほとんど一年生)", texture: "コルク質", underside: "管孔状", tissueColor: "白色〜クリーム色",
     mieru: ["蹄形〜半円形(径1〜4cm、厚さ1〜2cm)", "表面はクリーム色〜枯草色、環紋を有する", "肉はコルク質、白色〜クリーム色"],
     kettede: ["担子胞子は一端が切形の卵形〜楕円形〈12〜15×6〜10μm〉", "菌糸型は3菌糸型で、原菌糸にかすがい連結を有する", "肉はコルク質で、子実体は比較的小型で基質に固着する"],
     shutten: [SOURCES.handbook2017] },
