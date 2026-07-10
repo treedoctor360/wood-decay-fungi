@@ -23,7 +23,10 @@
 //   © 2026 Koh Kitsukawa. All rights reserved.
 // ============================================================
 
-const GEMINI_MODEL       = "gemini-2.5-flash";
+// モデル名。新規プロジェクトのキーでは古い固定名(gemini-2.5-flash等)が
+// 使えないことがある。常に最新のflashを指すエイリアスを既定にする。
+// 動かない場合の候補: "gemini-2.0-flash" / "gemini-2.5-flash"（既存ユーザーのみ）
+const GEMINI_MODEL       = "gemini-flash-latest";
 const DAILY_LIMIT_DEFAULT = 300; // スクリプトプロパティ DAILY_LIMIT 未設定時の既定
 
 // ------------------------------------------------------------
