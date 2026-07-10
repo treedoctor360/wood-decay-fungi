@@ -50,7 +50,7 @@ import { keyPromptBlock } from "./data/searchKey";
 //     1日レート制限＋無料枠キー＋Cloud予算上限。
 // ============================================================
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbwfSHmBl8VYy635RPq0hnc_q_wJw1Cgrg0NzXDcucBmK0jTVOvDKbMxeYqvr-UtCyJ9fQ/exec";
+  "https://script.google.com/macros/s/AKfycbyK2Oh2inwHlWoXmHOZxcTXMEi9KKMc7dY-WCctSCxwI_6eDaWKcQQI-6DVpSOzkMy2ow/exec";
 const RELAY_TOKEN = ""; // 任意。GAS側 SHARED_TOKEN を設定したら同じ値を入れる
 
 // ============================================================
@@ -58,7 +58,7 @@ const RELAY_TOKEN = ""; // 任意。GAS側 SHARED_TOKEN を設定したら同じ
 //   GAS_DB_URL と DB_TOKEN は記録管理GAS(DB中継WebApp)のURLとトークン。
 //   GASデプロイ後にここを書き換えてpushする(チャットには貼らない)。
 // ============================================================
-const GAS_DB_URL = "https://script.google.com/macros/s/AKfycbx4YIhH5eYdW1vOfJk-iKEy4JD9VRYVlT5eLUSuzXQiPLhv01D861g5Alt42825mA/exec"; // ← デプロイ後のURLに書き換える
+const GAS_DB_URL = "https://script.google.com/macros/s/AKfycbw3r2Hg1c0noB6xF3QGYhpbyj4O0nEzkOSIO_4GwNudVTRQnigt_b1wmFgp2SwuAxxb/exec"; // ← デプロイ後のURLに書き換える
 const DB_TOKEN   = "my_wood_decay_token_2026treedoctor"; // ← GASのスクリプトプロパティ TOKEN と一致させる
 
 const IDB_NAME  = "fungi-records-db"; // ブラウザ内DBの名前
