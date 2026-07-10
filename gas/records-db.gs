@@ -18,10 +18,15 @@
 //   SHEET_NAME … 任意。対象シート名（既定 "records"）。
 //
 // アプリとの通信契約（フロントの gasPost / gasGetAll と一致）:
-//   GET  ?token=... かつ ?token 一致 → { ok:true, records:[...] }
-//   POST { token, action:"save",   records:[...] } → { ok:true, saved:n }
-//   POST { token, action:"delete", ids:[...] }     → { ok:true, deleted:n }
+//   GET  ?token=... &group=... → { ok:true, records:[...] }  ※group一致の記録のみ返す
+//   POST { token, action:"save",   records:[...] }         → { ok:true, saved:n }
+//   POST { token, action:"delete", ids:[...], group:"..." } → { ok:true, deleted:n }
 //   ※Content-Type は text/plain（CORSプリフライト回避のため）。
+//
+// v2.1: 共有キーワード(group)によるグループ分けを追加。
+//   各記録に group 列を持ち、GETは同じgroupの記録だけ返す（不特定多数の混入防止）。
+//   deleteも同じgroupの記録だけ消せるようにサーバー側で確認（他グループを守る）。
+//   ※groupは“グループの合言葉”であり個人認証ではない。同一group内では共有の鍵。
 //
 //   © 2026 Koh Kitsukawa. All rights reserved.
 // ============================================================
@@ -68,6 +73,7 @@ function doGet(e) {
   try {
     const token = (e && e.parameter && e.parameter.token) || "";
     if (!tokenOK_(token)) return jsonOut({ ok: false, error: "認証エラー" });
+    const group = (e && e.parameter && e.parameter.group) || ""; // 共有キーワード
 
     const sheet  = getSheet_();
     const header = getHeader_(sheet);
@@ -75,11 +81,13 @@ function doGet(e) {
     if (header.length === 0 || lastRow < 2) return jsonOut({ ok: true, records: [] });
 
     const values = sheet.getRange(2, 1, lastRow - 1, header.length).getValues();
-    const records = values.map(row => {
+    let records = values.map(row => {
       const obj = {};
       header.forEach((h, i) => { obj[h] = row[i]; });
       return obj;
     });
+    // 共有キーワード(group)が一致する記録だけ返す（不特定多数の混入を防ぐ）
+    records = records.filter(r => String(r.group || "") === group);
     return jsonOut({ ok: true, records });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) });
@@ -101,7 +109,7 @@ function doPost(e) {
     if (!tokenOK_(body.token)) return jsonOut({ ok: false, error: "認証エラー" });
 
     if (body.action === "save")   return saveRecords_(body.records || []);
-    if (body.action === "delete") return deleteRecords_(body.ids || []);
+    if (body.action === "delete") return deleteRecords_(body.ids || [], body.group || "");
     return jsonOut({ ok: false, error: "未知のaction: " + body.action });
   } catch (err) {
     return jsonOut({ ok: false, error: String(err) });
@@ -164,19 +172,26 @@ function saveRecords_(records) {
 
 // ------------------------------------------------------------
 // delete: record_id 群に一致する行を削除（下から削除して行ずれを防ぐ）
+//   group を指定した場合は、同じ group の行だけ削除する（他グループを守る）。
 // ------------------------------------------------------------
-function deleteRecords_(ids) {
+function deleteRecords_(ids, group) {
   if (ids.length === 0) return jsonOut({ ok: true, deleted: 0 });
   const sheet = getSheet_();
   const header = getHeader_(sheet);
   const keyIdx = header.indexOf(KEY_COL);
+  const grpIdx = header.indexOf("group");
   const lastRow = sheet.getLastRow();
   if (keyIdx < 0 || lastRow < 2) return jsonOut({ ok: true, deleted: 0 });
 
   const idSet = new Set(ids.map(String));
-  const keyVals = sheet.getRange(2, keyIdx + 1, lastRow - 1, 1).getValues();
+  const values = sheet.getRange(2, 1, lastRow - 1, header.length).getValues();
   const rowsToDelete = [];
-  keyVals.forEach((v, i) => { if (idSet.has(String(v[0]))) rowsToDelete.push(i + 2); });
+  values.forEach((row, i) => {
+    const idMatch  = idSet.has(String(row[keyIdx]));
+    // group列がある場合は、リクエストのgroupと一致する行だけ削除対象にする
+    const grpMatch = (grpIdx < 0) || (String(row[grpIdx] || "") === (group || ""));
+    if (idMatch && grpMatch) rowsToDelete.push(i + 2);
+  });
 
   rowsToDelete.sort((a, b) => b - a).forEach(rowNum => sheet.deleteRow(rowNum));
   return jsonOut({ ok: true, deleted: rowsToDelete.length });
