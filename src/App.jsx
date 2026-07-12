@@ -159,6 +159,19 @@ function sortRecords(arr) {
   return [...arr].sort((a, b) => (b.created_at || "") > (a.created_at || "") ? 1 : -1);
 }
 
+// モデルが返すJSONは稀に前後に余分な文字が付いたり末尾カンマが混じる。寛容に解釈する。
+function parseLooseJson(text) {
+  try { return JSON.parse(text); } catch { /* fallthrough */ }
+  const s = text.indexOf("{"), e = text.lastIndexOf("}");
+  if (s >= 0 && e > s) {
+    const body = text.slice(s, e + 1);
+    try { return JSON.parse(body); } catch { /* fallthrough */ }
+    // 末尾カンマ(閉じ括弧の直前)を除去して再挑戦
+    try { return JSON.parse(body.replace(/,\s*([}\]])/g, "$1")); } catch { /* fallthrough */ }
+  }
+  throw new SyntaxError("JSON parse failed");
+}
+
 // ---- 配色トークン(標本ラベル風)----
 const C = {
   paper: "#ECEEE6",
@@ -865,7 +878,7 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
       contents: [{ parts }],
       generationConfig: {
         responseMimeType: "application/json",
-        maxOutputTokens: 8192,
+        maxOutputTokens: 16384,
         thinkingConfig: { thinkingBudget: 0 },
       },
     };
@@ -889,7 +902,8 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
         setError("Gemini中継エラー:" + (raw.detail ? String(raw.detail).slice(0, 200) : raw.error));
         return;
       }
-      const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text;
+      // 応答は複数のtextパートに分割されることがあるため、全パートを連結する
+      const text = (raw?.candidates?.[0]?.content?.parts || []).map(p => p.text || "").join("");
       if (!text || !text.trim()) {
         const reason = raw?.candidates?.[0]?.finishReason || raw?.promptFeedback?.blockReason || "";
         setError("AIから空の応答が返りました。" + (reason ? `理由:${reason}。` : "") + "写真の枚数を減らすか、別の写真でお試しください。");
@@ -897,7 +911,7 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
       }
       const clean = text.replace(/```json|```/g, "").trim();
       try {
-        const parsed = JSON.parse(clean);
+        const parsed = parseLooseJson(clean);
         setResult(parsed);
         setSavedCandIdx(new Set()); // 候補が更新されたら「記録済み」状態をリセット
         // 対話ログにAIの応答を追加(判定・暫定1位・確認したいこと)
