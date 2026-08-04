@@ -874,30 +874,52 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
       parts.push({ inline_data: { mime_type: p.mime || "image/jpeg", data: p.base64 } });
     });
     parts.push({ text: instruction });
+    // 思考(thinking)の設定はモデル世代で書式が違う。
+    //   Gemini 2.5系 … thinkingBudget(整数トークン数)。0で思考オフ。
+    //   Gemini 3系   … thinkingLevel("minimal"/"low"/"medium"/"high")。thinkingBudgetは400エラー。
+    // GAS側のモデル名は "gemini-flash-latest"(最新flashを指すエイリアス)なので、
+    // Google側でエイリアスの実体が入れ替わると書式も変わる。どちらに転んでも動くよう、
+    // まず新書式で送り、400(INVALID_ARGUMENT)なら思考設定なしで1回だけ再送する。
+    const genConfigBase = {
+      responseMimeType: "application/json",
+      maxOutputTokens: 16384,
+    };
     const geminiBody = {
       contents: [{ parts }],
-      generationConfig: {
-        responseMimeType: "application/json",
-        maxOutputTokens: 16384,
-        thinkingConfig: { thinkingBudget: 0 },
-      },
+      generationConfig: { ...genConfigBase, thinkingConfig: { thinkingLevel: "low" } },
     };
 
     try {
       const relayUrl = RELAY_TOKEN
         ? GAS_URL + "?token=" + encodeURIComponent(RELAY_TOKEN)
         : GAS_URL;
-      const res = await fetch(relayUrl, {
-        method: "POST",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(geminiBody),
-      });
-      if (!res.ok) {
-        const t = await res.text().catch(() => "");
-        setError(`中継サーバー(GAS)からHTTP ${res.status} が返りました。${t.slice(0, 200)}`);
+      // 中継POSTの共通処理。HTTPエラーは httpStatus、本文は json で返す。
+      const postRelay = async (body) => {
+        const res = await fetch(relayUrl, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) {
+          return { httpStatus: res.status, text: await res.text().catch(() => "") };
+        }
+        return { json: await res.json() };
+      };
+
+      let r = await postRelay(geminiBody);
+      // 生成設定がモデルに合わない(400 INVALID_ARGUMENT)場合は、思考設定を外して再送
+      const badArg =
+        r.json && r.json.error && !r.json.limited &&
+        (r.json.status === 400 || /INVALID_ARGUMENT/i.test(String(r.json.detail || "")));
+      if (badArg) {
+        r = await postRelay({ contents: [{ parts }], generationConfig: genConfigBase });
+      }
+
+      if (r.httpStatus) {
+        setError(`中継サーバー(GAS)からHTTP ${r.httpStatus} が返りました。${String(r.text || "").slice(0, 200)}`);
         return;
       }
-      const raw = await res.json();
+      const raw = r.json;
       if (raw && raw.error) {
         setError("Gemini中継エラー:" + (raw.detail ? String(raw.detail).slice(0, 200) : raw.error));
         return;
