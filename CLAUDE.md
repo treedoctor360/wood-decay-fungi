@@ -19,6 +19,10 @@
 2. **GASはリポジトリからデプロイされない。** `gas/*.gs` は**参照コピー**で、実体は各自のGoogle Apps Script内で動く。
    - GASのコードを変えたら、Apps Scriptエディタで編集→保存→**デプロイ→デプロイを管理→編集→バージョン「新規」→デプロイ**（同一URL維持）。保存だけでは本番に反映されない。
 3. **Geminiのモデル名は `gemini-flash-latest`**（`gas/gemini-relay.gs`）。新規プロジェクトのAPIキーでは `gemini-2.5-flash` は404（新規ユーザー提供外）。
+   - これは**エイリアス**なので、Google側で実体モデルが入れ替わるとリクエスト書式も変わる（＝コードを触っていないのに突然400になる）。
+   - 思考設定の書式：Gemini 2.5系は `thinkingConfig.thinkingBudget`(整数)、**Gemini 3系は `thinkingConfig.thinkingLevel`**("minimal"/"low"/"medium"/"high")。
+     旧書式を新モデルに送ると `400 INVALID_ARGUMENT: Request contains an invalid argument.` になる。
+     `src/App.jsx` は新書式で送り、400なら思考設定なしで1回だけ自動再送する（どちらの世代でも動く）。
 4. **GASのWeb AppはOrigin/Refererヘッダを読めない** → 参照元制限は不可。防御はレート制限・トークン・無料枠キー・グループ分けで行う。
 5. 種は **`id` でなく和名で照合**。`id`は書籍の解説本文順で、**書籍の表1-1（索引表）とはコウヤクタケ科10〜13で番号が食い違う**（書籍内の不整合。OCRのせいではない）。
 
