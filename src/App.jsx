@@ -626,6 +626,7 @@ export default function App() {
   const [chatInput, setChatInput] = useState(""); // 対話の入力欄
   const [dialogue, setDialogue] = useState([]);   // 対話ログ(表示用) {role:'ai'|'user', text}
   const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState(""); // 再試行中などの一時メッセージ(エラーではない)
   const [result, setResult] = useState(null);
   const [error, setError] = useState("");
   const [records, setRecords] = useState([]);
@@ -763,6 +764,7 @@ export default function App() {
   // Gemini呼び出し
   async function runNarrowing(currentAnswers, currentNotes = userNotes) {
     setError("");
+    setNotice("");
     if (photos.length === 0) { setError("写真を1枚以上アップロードしてください。"); return; }
     setLoading(true);
 
@@ -915,13 +917,28 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
         r = await postRelay({ contents: [{ parts }], generationConfig: genConfigBase });
       }
 
+      // Gemini側の一時的な混雑(503 UNAVAILABLE)やレート超過(429)は、
+      // 少し待てば通ることが多い。利用者に押し直させず、自動で間隔を空けて再試行する。
+      const busyBody = badArg ? { contents: [{ parts }], generationConfig: genConfigBase } : geminiBody;
+      const waits = [2000, 5000, 9000];
+      for (let i = 0; i < waits.length && isBusyResponse(r); i++) {
+        setNotice(`Gemini側が混雑しています。${Math.round(waits[i] / 1000)}秒待って再試行します…(${i + 1}/${waits.length})`);
+        await sleep(waits[i]);
+        r = await postRelay(busyBody);
+      }
+      setNotice("");
+
       if (r.httpStatus) {
         setError(`中継サーバー(GAS)からHTTP ${r.httpStatus} が返りました。${String(r.text || "").slice(0, 200)}`);
         return;
       }
       const raw = r.json;
       if (raw && raw.error) {
-        setError("Gemini中継エラー:" + (raw.detail ? String(raw.detail).slice(0, 200) : raw.error));
+        if (isBusyResponse(r)) {
+          setError("Gemini側が混雑していて応答がありません(503)。数分おいてから、もう一度「候補を絞る」を押してください。");
+        } else {
+          setError("Gemini中継エラー:" + (raw.detail ? String(raw.detail).slice(0, 200) : raw.error));
+        }
         return;
       }
       // 応答は複数のtextパートに分割されることがあるため、全パートを連結する
@@ -955,6 +972,7 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
     } catch (err) {
       setError("通信に失敗しました:" + (err?.message || "ネットワークを確認してください"));
     } finally {
+      setNotice("");
       setLoading(false);
     }
   }
@@ -1268,6 +1286,7 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
               <button onClick={startNarrowing} disabled={loading} style={primaryBtn(loading)}>
                 {loading ? "絞り込み中…" : "候補を絞る"}
               </button>
+              {notice && <p style={{ color: C.sub, fontSize: 13, marginTop: 10 }}>{notice}</p>}
               {error && <p style={{ color: C.rust, fontSize: 13, marginTop: 10 }}>{error}</p>}
             </section>
 
@@ -1677,6 +1696,24 @@ function SpeciesList() {
       ))}
       {list.length === 0 && <p style={{ fontSize: 13, color: C.sub }}>該当する種がありません。検索条件を変えてください。</p>}
     </section>
+  );
+}
+
+// 指定ミリ秒だけ待つ(混雑時の自動再試行で使う)
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+// 中継の応答が「Gemini側が一時的に混んでいる」ものかを判定する。
+// 503 UNAVAILABLE(高負荷) / 429 RESOURCE_EXHAUSTED(レート超過)は待てば通ることが多い。
+// GAS自身の1日上限エラー(limited:true)は待っても解消しないので除外する。
+function isBusyResponse(r) {
+  if (!r || !r.json || !r.json.error || r.json.limited) return false;
+  const status = r.json.status;
+  const detail = String(r.json.detail || "");
+  return (
+    status === 503 || status === 429 ||
+    /UNAVAILABLE|RESOURCE_EXHAUSTED|overloaded|high demand/i.test(detail)
   );
 }
 
