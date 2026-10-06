@@ -935,7 +935,9 @@ kagi(見分けの鍵)について:判定が「保留」、または上位2候補
       const raw = r.json;
       if (raw && raw.error) {
         if (isBusyResponse(r)) {
-          setError("Gemini側が混雑していて応答がありません(503)。数分おいてから、もう一度「候補を絞る」を押してください。");
+          // GAS側で複数モデルを試した結果(tried)があれば、切り分け用に添える
+          const tried = raw.tried ? `(試行:${String(raw.tried).slice(0, 80)})` : "";
+          setError("Gemini側が混雑していて応答がありません(503)。数分おいてから、もう一度「候補を絞る」を押してください。" + tried);
         } else {
           setError("Gemini中継エラー:" + (raw.detail ? String(raw.detail).slice(0, 200) : raw.error));
         }
